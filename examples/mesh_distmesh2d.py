@@ -1,0 +1,267 @@
+# coding: utf-8
+# pylint: disable=invalid-name
+""" demo for distmesh 2D """
+# Copyright (c) Benyuan Liu. All Rights Reserved.
+# Distributed under the (new) BSD License. See LICENSE.txt for more info.
+from __future__ import division, absolute_import, print_function
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pyeit.mesh import shape
+from pyeit.mesh import distmesh
+from pyeit.mesh.plot import voronoi_plot
+from pyeit.mesh.shape import thorax, area_uniform, rectangle, ball
+
+
+def example1():
+    """unit circle mesh"""
+
+    def _fd(pts):
+        """shape function"""
+        return shape.circle(pts, pc=[0, 0], r=1.0)
+
+    def _fh(pts):
+        """distance function"""
+        r2 = np.sum(pts**2, axis=1)
+        return 0.2 * (2.0 - r2)
+
+    # build fix points, may be used as the position for electrodes
+    num = 16
+    p_fix = shape.fix_points_circle(ppl=num)
+
+    # firs num nodes are the positions for electrodes
+    el_pos = np.arange(num)
+
+    # build triangle
+    p, t = distmesh.build(_fd, _fh, pfix=p_fix, h0=0.05)
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.plot(p[el_pos, 0], p[el_pos, 1], "ro")
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.1, 1.1])
+    plt.show()
+
+
+def example2():
+    """unit circle with a whole at the center"""
+
+    def _fd(pts):
+        return shape.dist_diff(shape.circle(pts, r=0.7), shape.circle(pts, r=0.3))
+
+    # build triangle
+    p, t = distmesh.build(_fd, shape.area_uniform, h0=0.1)
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.set_aspect("equal")
+    plt.show()
+
+
+def example3():
+    """rectangle with a whole at the center"""
+
+    # interior
+    def _fd(pts):
+        rect = shape.rectangle(pts, p1=[-1, -1], p2=[1, 1])
+        circle = shape.circle(pts, r=0.5)
+        return shape.dist_diff(rect, circle)
+
+    # constraints
+    def _fh(pts):
+        return 0.05 + 0.3 * shape.circle(pts, r=0.5)
+
+    # build triangle
+    p, t = distmesh.build(_fd, _fh, h0=0.025)
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.2, 1.2])
+    ax.set_ylim([-1, 1])
+    plt.show()
+
+
+def example4():
+    """ellipse"""
+
+    def _fd(pts):
+        if pts.ndim == 1:
+            pts = pts[np.newaxis]
+        a, b = 2.0, 1.0
+        return np.sum((pts / [a, b]) ** 2, axis=1) - 1.0
+
+    # build triangle
+    p, t = distmesh.build(_fd, shape.area_uniform, bbox=[[-2, -1], [2, 1]], h0=0.15)
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.set_aspect("equal")
+    plt.show()
+
+
+def example5():
+    """
+    Notes
+    -----
+    L-shaped domain from
+        'Finite Elements and Fast Iterative Solvers'
+        by Elman, Silvester, and Wathen.
+    """
+
+    # set fixed points
+    p_fix = [[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1], [0, 0]]
+    p_fix = np.array(p_fix)
+
+    def _fd(pts):
+        return shape.dist_diff(
+            shape.rectangle(pts, p1=[-1, -1], p2=[1, 1]),
+            shape.rectangle(pts, p1=[0, 0], p2=[1, 1]),
+        )
+
+    # build
+    p, t = distmesh.build(_fd, shape.area_uniform, pfix=p_fix, h0=0.15)
+
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.plot(p_fix[:, 0], p_fix[:, 1], "ro")
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.2, 1.2])
+    ax.set_ylim([-1.2, 1.2])
+    plt.show()
+
+
+def example6():
+    """Thorax mesh"""
+
+    # build fix points, may be used as the position for electrodes
+    num = 16
+
+    el_pos = np.arange(num)
+    p_fix = [
+        (0.1564, 0.6571),
+        (0.5814, 0.6353),
+        (0.8298, 0.433),
+        (0.9698, 0.1431),
+        (0.9914, -0.1767),
+        (0.8359, -0.449),
+        (0.5419, -0.5833),
+        (0.2243, -0.6456),
+        (-0.098, -0.6463),
+        (-0.4181, -0.6074),
+        (-0.7207, -0.4946),
+        (-0.933, -0.2647),
+        (-0.9147, 0.0543),
+        (-0.8022, 0.3565),
+        (-0.5791, 0.5864),
+        (-0.1653, 0.6819),
+    ]
+    # build triangles
+    p, t = distmesh.build(thorax, fh=area_uniform, pfix=p_fix, h0=0.05)
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.plot(p[el_pos, 0], p[el_pos, 1], "ro")  # ro : red circle
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.1, 1.1])
+    ax.set_title("Thorax mesh")
+    plt.show()
+def example7():
+    """3D Thorax mesh"""
+    num = 16
+
+    el_pos = np.arange(num)
+    p_fix = [
+        (-5.6884, -113.73, 0.65624),
+        (59.191, -109.53, 0.65618),
+        (116.46, -87.213, 0.65613),
+        (156.06, -38.888, 0.65632),
+        (188.86, 15.47, 0.6566),
+        (188.9, 82.114, 0.65688),
+        (135.82, 128.86, 0.65688),
+        (72.871, 157.22, 0.65678),
+        (4.3429, 161.59, 0.65662),
+        (-64.856, 149.68, 0.65635),
+        (-119.59, 117.78, 0.65621),
+        (-162.99, 78.197, 0.65636),
+        (-178.72, 24.152, 0.6565),
+        (-152.17, -33.617, 0.65658),
+        (-118.05, -80.938, 0.65635),
+        (-68.639, -109.89, 0.65628)
+    ]
+    # build triangles
+    p, t = distmesh.build(ball, fh=area_uniform, pfix=p_fix, h0=0.05)
+    # plot
+    fig, ax = plt.subplots()
+    ax.triplot(p[:, 0], p[:, 1], p[:, 2], t)
+    ax.plot(p[el_pos, 0], p[el_pos, 1], p[el_pos, 2], "ro")  # ro : red circle
+    ax.set_aspect("equal")
+    ax.set_xlim([-200, 200])
+    ax.set_ylim([-150, 150])
+    ax.set_title("Thorax mesh")
+    plt.show()
+
+
+def example_voronoi_plot():
+    """draw voronoi plots for triangle elements"""
+
+    def _fd(pts):
+        return shape.dist_diff(shape.circle(pts, r=0.9), shape.circle(pts, r=0.4))
+
+    # build triangle
+    p, t = distmesh.build(_fd, shape.area_uniform, h0=0.1)
+
+    # plot using customized voronoi function
+    _, ax = voronoi_plot(p, t, figsize=(9, 6))
+    ax.triplot(p[:, 0], p[:, 1], t, color="k", alpha=0.35)
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.0, 1.0])
+    ax.set_ylim([-1.0, 1.0])
+    plt.show()
+
+
+def example_intersect():
+    """example on how to use dist_intersect and fix_points_fd"""
+
+    def _fd(pts):
+        """_fd must centered at [0, 0]"""
+        ellipse = shape.ellipse(pts, pc=[0, -0.6], ab=[1, 1.5])
+        circle = shape.circle(pts, pc=[0, 0], r=1)
+        return shape.dist_intersect(ellipse, circle)
+
+    # create equal-distributed electrodes
+    p_fix = shape.fix_points_fd(_fd)
+
+    # generate mesh
+    bbox = [[-2, -2], [2, 2]]
+    p, t = distmesh.build(_fd, shape.area_uniform, pfix=p_fix, bbox=bbox, h0=0.1)
+
+    # plot
+    fig, ax = plt.subplots()
+    # Draw a unstructured triangular grid as lines and/or markers.
+    ax.triplot(p[:, 0], p[:, 1], t)
+    ax.plot(p_fix[:, 0], p_fix[:, 1], "ro")
+    ax.set_aspect("equal")
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.2, 1.2])
+    plt.show()
+
+
+if __name__ == "__main__":
+     # example1()
+    # example2()
+    # example3()
+    # example4()
+    # example5()
+     #example6()
+     #example7()
+     example_voronoi_plot()
+    #example_intersect()

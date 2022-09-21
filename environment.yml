@@ -1,0 +1,13 @@
+name: pyeit-environment
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pytest
+  - pytest-cov
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib-base
+  - vispy
+  - shapely
